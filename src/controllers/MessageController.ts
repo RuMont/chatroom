@@ -26,7 +26,7 @@ export default class MessageController extends Controller {
       handler: this.update,
     },
     {
-      path: "/delete",
+      path: "/delete/:id",
       method: "delete",
       handler: this.delete,
     },

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fa8a9812-07f5-4c37-984b-cf08ff5c2fcd",
+  "id": "0e3d4e64-d6b0-4a69-ba1d-6077b17a1b2a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "client": {
@@ -20,10 +20,31 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "joined_room_id": {
+          "name": "joined_room_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "client_joined_room_id_room_id_fk": {
+          "name": "client_joined_room_id_room_id_fk",
+          "tableFrom": "client",
+          "tableTo": "room",
+          "columnsFrom": [
+            "joined_room_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
@@ -41,14 +62,14 @@
           "name": "client_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "room_id": {
           "name": "room_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "timestamp": {
@@ -63,7 +84,7 @@
           "name": "content",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         }
       },

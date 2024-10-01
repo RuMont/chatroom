@@ -28,7 +28,7 @@ export default class RoomController extends Controller {
       handler: this.update,
     },
     {
-      path: "/delete",
+      path: "/delete/:id",
       method: "delete",
       handler: this.delete,
     },
@@ -61,7 +61,7 @@ export default class RoomController extends Controller {
         );
         return;
       }
-      const room = await this.roomService.getById(roomId as string);
+      const room = await this.roomService.getById(roomId);
       this.sendSuccess(res, room);
     } catch (error) {
       this.sendServerError(res, error + "");
@@ -92,5 +92,21 @@ export default class RoomController extends Controller {
     }
   }
 
-  public async delete(req: Request, res: Response, next: NextFunction) {}
+  public async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      const roomId = req.params.id;
+      if (!roomId || typeof roomId !== "string") {
+        this.sendClientError(
+          res,
+          "'id' route param is mandatory and must be in UUID format. Eg: /route/<uuid>",
+          400
+        );
+        return;
+      }
+      const result = await this.roomService.delete(roomId);
+      this.sendSuccess(res, { affected: result.changes });
+    } catch (error) {
+      this.sendServerError(res, error + "");
+    }
+  }
 }

@@ -5,33 +5,30 @@ import {
   room,
   updateRoomSchema,
 } from "../schemas/RoomSchema";
-import { Room } from "../types/Room";
-import { message } from "../schemas/MessageSchema";
 import { CreateRoomDto } from "../dto/CreateRoomDto";
+import Container from "../di/container";
+import RTService from "./RTService";
 
 export default class RoomService {
-  async get() {
-    return await db.select().from(room);
+  private readonly rtService;
+
+  constructor() {
+    this.rtService = Container.get(RTService);
   }
 
-  async getById(id: Room["id"]) {
-    const roomResult = (await db.select().from(room).where(eq(room.id, id))).at(
-      0
-    );
+  async get() {
+    return db.select().from(room);
+  }
+
+  async getById(id: typeof room.$inferSelect.id) {
+    const roomResult = db.select().from(room).where(eq(room.id, id)).get();
     if (!roomResult) return null;
-    const messages = await db
-      .select()
-      .from(message)
-      .where(eq(message.roomId, id));
-    return {
-      ...roomResult,
-      messages,
-    };
+    return roomResult;
   }
 
   async create(roomDto: CreateRoomDto) {
-    const validateSchema = insertRoomSchema.pick({ name: true });
-    const newRoom = validateSchema.parse(roomDto);
+    const validationSchema = insertRoomSchema.pick({ name: true });
+    const newRoom = validationSchema.parse(roomDto);
     const sameNameRooms = await db
       .select({ count: count() })
       .from(room)
@@ -39,18 +36,31 @@ export default class RoomService {
       .get()?.count;
     if (sameNameRooms)
       throw `Another room with name ${newRoom.name} already exists`;
-    return await db.insert(room).values(newRoom).returning();
+    const createdRoom = await db.insert(room).values(newRoom).returning().get();
+    if (!createdRoom) return null;
+    this.rtService.fireRoomCreated(createdRoom);
+    return createdRoom;
   }
 
   async update(roomDto: CreateRoomDto) {
-    const validateSchema = updateRoomSchema.pick({ id: true, name: true });
-    const newRoom = validateSchema.parse(roomDto);
-    return (
-      await db
-        .update(room)
-        .set(newRoom)
-        .where(eq(room.id, newRoom.id!))
-        .returning()
-    ).at(0);
+    const validationSchema = updateRoomSchema.pick({ id: true, name: true });
+    const newRoom = validationSchema.parse(roomDto);
+    const updatedRoom = db
+      .update(room)
+      .set(newRoom)
+      .where(eq(room.id, newRoom.id!))
+      .returning()
+      .get();
+    this.rtService.fireRoomUpdated(updatedRoom);
+    return updatedRoom;
+  }
+
+  async delete(roomId: typeof room.$inferSelect.id) {
+    const result = db.delete(room).where(eq(room.id, roomId));
+    this.rtService.fireRoomDeleted({
+      id: roomId,
+      name: "",
+    });
+    return result;
   }
 }

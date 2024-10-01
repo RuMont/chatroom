@@ -6,10 +6,10 @@ import { Prettify } from "../types/Prettify";
 import { RTState } from "../types/RealTimeState";
 import Container from "../di/container";
 import RoomService from "./RoomService";
-import { RTEvent } from "../types/RTEvent";
 import ClientService from "./ClientService";
+import { AppEvent } from "../types/AppEvent";
 
-export default class RTService {
+export default class EventService {
   state: Prettify<RTState> = new Map();
   clients: (typeof client.$inferSelect & { connection: Response })[] = [];
 
@@ -19,11 +19,30 @@ export default class RTService {
     res: Response
   ) {
     // restore state when the first user subscribes
-    this.restoreStateIfEmpty();
+    await this.restoreStateIfEmpty();
     await this.validateClient(connectedClient);
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Cache-Control", "no-cache");
     this.registerClient(connectedClient, res);
     this.watchConnection(connectedClient, req, res);
   }
+
+  public unsubscribe(
+    res: Response,
+    reason: string | null = null,
+    code: number
+  ) {
+    if (reason) res.status(code);
+    res.write(
+      `data: ${JSON.stringify({
+        message: reason,
+      })}\n\n`
+    );
+    res.end();
+  }
+
+  // #region events start
 
   public fireRoomCreated(createdRoom: typeof room.$inferSelect) {
     this.state.set(createdRoom.id, {
@@ -103,7 +122,9 @@ export default class RTService {
     });
   }
 
-  private notifyAll<T>(event: RTEvent<T>) {
+  // #region events finish
+
+  private notifyAll<T>(event: AppEvent<T>) {
     this.clients.forEach((client) => {
       client.connection.write(`data: ${JSON.stringify(event)}\n\n`);
     });
@@ -111,7 +132,7 @@ export default class RTService {
 
   private notifyRoomParticipants<T>(
     roomId: typeof room.$inferSelect.id,
-    event: RTEvent<T>
+    event: AppEvent<T>
   ) {
     const participants = this.state.get(roomId)?.participants;
     if (!participants || participants.length === 0) return;
@@ -121,6 +142,23 @@ export default class RTService {
     connections.forEach((conn) =>
       conn.write(`data: ${JSON.stringify(event)}\n\n`)
     );
+  }
+
+  private async restoreStateIfEmpty() {
+    if (this.state.size !== 0) return;
+    const rooms = await Container.get(RoomService).get();
+    rooms.forEach((room) =>
+      this.state.set(room.id, {
+        messages: [],
+        name: room.name,
+        participants: [],
+      })
+    );
+    console.log({
+      "Restored state": this.state,
+    });
+    // fetch participants
+    // fetch messages
   }
 
   private async validateClient(connectedClient: typeof client.$inferSelect) {
@@ -134,7 +172,7 @@ export default class RTService {
 
     const clientService = Container.get(ClientService);
     const result = await clientService.getById(connectedClient.id);
-    if (!result) throw "not found";
+    if (!result) throw "unauthorized";
   }
 
   private registerClient(
@@ -162,24 +200,5 @@ export default class RTService {
       };
     });
     res.write("");
-  }
-
-  private restoreStateIfEmpty() {
-    if (this.state.size !== 0) return;
-    const roomService = Container.get(RoomService);
-    roomService.get().then((rooms) => {
-      // fetch participants
-      // fetch messages
-      rooms.forEach((room) =>
-        this.state.set(room.id, {
-          messages: [],
-          name: room.name,
-          participants: [],
-        })
-      );
-      console.log({
-        "Restored state": this.state,
-      });
-    });
   }
 }

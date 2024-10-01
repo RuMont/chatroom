@@ -5,19 +5,19 @@ import RoomController from "./src/controllers/RoomController";
 import RoomService from "./src/services/RoomService";
 import ClientService from "./src/services/ClientService";
 import MessageService from "./src/services/MessageService";
-import RTController from "./src/controllers/RTController";
-import RTService from "./src/services/RTService";
+import EventController from "./src/controllers/EventController";
+import EventService from "./src/services/EventService";
 
 try {
   Server.createInstance({
     port: 3000,
   })
-    .inject(RTService, RoomService, ClientService, MessageService)
+    .inject(EventService, RoomService, ClientService, MessageService)
     .loadControllers(
       RoomController,
       ClientController,
       MessageController,
-      RTController
+      EventController
     )
     .listen();
 } catch (err) {

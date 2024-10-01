@@ -7,13 +7,13 @@ import {
 } from "../schemas/RoomSchema";
 import { CreateRoomDto } from "../dto/CreateRoomDto";
 import Container from "../di/container";
-import RTService from "./RTService";
+import EventService from "./EventService";
 
 export default class RoomService {
-  private readonly rtService;
+  private readonly eventService: EventService;
 
   constructor() {
-    this.rtService = Container.get(RTService);
+    this.eventService = Container.get(EventService);
   }
 
   async get() {
@@ -38,7 +38,7 @@ export default class RoomService {
       throw `Another room with name ${newRoom.name} already exists`;
     const createdRoom = await db.insert(room).values(newRoom).returning().get();
     if (!createdRoom) return null;
-    this.rtService.fireRoomCreated(createdRoom);
+    this.eventService.fireRoomCreated(createdRoom);
     return createdRoom;
   }
 
@@ -51,13 +51,13 @@ export default class RoomService {
       .where(eq(room.id, newRoom.id!))
       .returning()
       .get();
-    this.rtService.fireRoomUpdated(updatedRoom);
+    this.eventService.fireRoomUpdated(updatedRoom);
     return updatedRoom;
   }
 
   async delete(roomId: typeof room.$inferSelect.id) {
     const result = db.delete(room).where(eq(room.id, roomId));
-    this.rtService.fireRoomDeleted({
+    this.eventService.fireRoomDeleted({
       id: roomId,
       name: "",
     });

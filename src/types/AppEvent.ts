@@ -1,5 +1,5 @@
 import { Prettify } from "./Prettify";
 
-export type RTEvent<T> = Prettify<{
+export type AppEvent<T> = Prettify<{
   [key: `[${string}]`]: T;
 }>;

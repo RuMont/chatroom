@@ -7,13 +7,13 @@ import {
 } from "../schemas/ClientSchema";
 import { CreateClientDto } from "../dto/CreateClientDto";
 import Container from "../di/container";
-import RTService from "./RTService";
+import EventService from "./EventService";
 
 export default class ClientService {
-  private readonly rtService;
+  private readonly eventService: EventService;
 
   constructor() {
-    this.rtService = Container.get(RTService);
+    this.eventService = Container.get(EventService);
   }
 
   async get() {
@@ -57,14 +57,14 @@ export default class ClientService {
 
     if (newClient.roomId !== null && newClient.roomId !== undefined) {
       if (oldClient.roomId !== newClient.roomId) {
-        this.rtService.fireClientConnected(newClient.roomId, newClient);
+        this.eventService.fireClientConnected(newClient.roomId, newClient);
       }
       if (oldClient.name !== newClient.name) {
-        this.rtService.fireClientUpdated(newClient.roomId, newClient);
+        this.eventService.fireClientUpdated(newClient.roomId, newClient);
       }
     } else {
       if (oldClient.roomId) {
-        this.rtService.fireClientDisconnected(oldClient.roomId, newClient);
+        this.eventService.fireClientDisconnected(oldClient.roomId, newClient);
       }
     }
 
@@ -80,7 +80,7 @@ export default class ClientService {
     const result = db.delete(client).where(eq(client.id, clientId));
 
     if (deletingClient?.roomId) {
-      this.rtService.fireClientDisconnected(
+      this.eventService.fireClientDisconnected(
         deletingClient.roomId,
         deletingClient
       );

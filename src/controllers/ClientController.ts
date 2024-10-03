@@ -20,6 +20,11 @@ export default class ClientController extends Controller {
       handler: this.getById,
     },
     {
+      path: "/room/:roomId",
+      method: "get",
+      handler: this.getFromRoom,
+    },
+    {
       path: "/create",
       method: "post",
       handler: this.create,
@@ -52,7 +57,7 @@ export default class ClientController extends Controller {
     }
   }
 
-  public async getById(req: Request, res: Response, next: NextFunction) {
+  public async getById(req: Request, res: Response) {
     try {
       const clientId = req.params.id;
       if (!clientId || typeof clientId !== "string") {
@@ -65,6 +70,24 @@ export default class ClientController extends Controller {
       }
       const client = await this.clientService.getById(clientId);
       this.sendSuccess(res, client);
+    } catch (error) {
+      this.sendServerError(res, error + "");
+    }
+  }
+
+  public async getFromRoom(req: Request, res: Response) {
+    try {
+      const roomId = req.params.roomId;
+      if (!roomId || typeof roomId !== "string") {
+        this.sendClientError(
+          res,
+          "'roomId' route param is mandatory and must be in UUID format. Eg: /route/<uuid>",
+          400
+        );
+        return;
+      }
+      const clients = await this.clientService.getFromRoom(roomId);
+      this.sendSuccess(res, clients);
     } catch (error) {
       this.sendServerError(res, error + "");
     }

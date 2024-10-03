@@ -8,6 +8,7 @@ import { AppEvent } from "../types/AppEvent";
 import { ClientModel } from "../models/ClientModel";
 import { RoomModel } from "../models/RoomModel";
 import { MessageModel } from "../models/MessageModel";
+import MessageService from "./MessageService";
 
 export default class EventService {
   state: RTState = new Map();
@@ -18,12 +19,10 @@ export default class EventService {
     req: Request,
     res: Response
   ) {
-    // restore state when the first user subscribes
     await this.restoreStateIfEmpty();
     await this.validateClient(connectedClient);
-    this.initStream(res);
-    this.registerClient(connectedClient, res);
     this.watchConnection(connectedClient, req, res);
+    this.registerClient(connectedClient, res);
   }
 
   public unsubscribe(
@@ -64,24 +63,18 @@ export default class EventService {
     this.notifyAll({ "[Room Deleted]": deletedRoom });
   }
 
-  public fireMessageCreated(
-    roomId: RoomModel["id"],
-    createdMessage: MessageModel
-  ) {
-    const room = this.state.get(roomId);
+  public fireMessageCreated(createdMessage: MessageModel) {
+    const room = this.state.get(createdMessage.roomId);
     room?.messages.push(createdMessage);
-    this.notifyRoomParticipants(roomId, {
+    this.notifyRoomParticipants(createdMessage.roomId, {
       "[Message Created]": createdMessage,
     });
   }
 
-  public fireMessageDeleted(
-    roomId: RoomModel["id"],
-    deletedMessage: MessageModel
-  ) {
-    const room = this.state.get(roomId);
+  public fireMessageDeleted(deletedMessage: MessageModel) {
+    const room = this.state.get(deletedMessage.roomId);
     room?.messages.filter((msg) => msg.id !== deletedMessage.id);
-    this.notifyRoomParticipants(roomId, {
+    this.notifyRoomParticipants(deletedMessage.roomId, {
       "[Message Deleted]": deletedMessage,
     });
   }
@@ -122,6 +115,11 @@ export default class EventService {
 
   // #region events finish
 
+  private notifyClient<T>(clientId: ClientModel["id"], event: AppEvent<T>) {
+    const client = this.clients.find((cl) => cl.id === clientId);
+    client?.connection.write(`data: ${JSON.stringify(event)}\n\n`);
+  }
+
   private notifyAll<T>(event: AppEvent<T>) {
     this.clients.forEach((client) => {
       client.connection.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -144,19 +142,18 @@ export default class EventService {
 
   private async restoreStateIfEmpty() {
     if (this.state.size !== 0) return;
-    const rooms = await Container.get(RoomService).get();
-    rooms.forEach((room) =>
+
+    const roomService = Container.get(RoomService);
+    const clientService = Container.get(ClientService);
+    const messageService = Container.get(MessageService);
+
+    for (const room of await roomService.get()) {
       this.state.set(room.id, {
-        messages: [],
+        messages: await messageService.getFromRoom(room.id),
         name: room.name,
-        participants: [],
-      })
-    );
-    // fetch participants
-    // fetch messages
-    console.log({
-      "Restored state": this.state,
-    });
+        participants: await clientService.getFromRoom(room.id),
+      });
+    }
   }
 
   private async validateClient(connectedClient: ClientModel) {
@@ -167,13 +164,18 @@ export default class EventService {
         roomId: true,
       })
       .parse(connectedClient);
-
     const clientService = Container.get(ClientService);
     const result = await clientService.getById(connectedClient.id);
     if (!result) throw "unauthorized";
   }
 
   private registerClient(connectingClient: ClientModel, res: Response) {
+    const clientIndex = this.clients.findIndex(
+      (client) => client.id === connectingClient.id
+    );
+    if (clientIndex !== -1) {
+      this.clients.splice(clientIndex, 1);
+    }
     this.clients.push({
       ...connectingClient,
       connection: res,
@@ -186,20 +188,17 @@ export default class EventService {
     req: Request,
     res: Response
   ) {
-    req.on("close", () => {
-      return () => {
-        this.clients = this.clients.filter(
-          (client) => client.id !== connectingClient.id
-        );
-        console.log(`${connectingClient.name} disconnected`);
-      };
-    });
-    res.write("");
-  }
-
-  private initStream(res: Response) {
+    const terminate = () => {
+      this.clients = this.clients.filter(
+        (client) => client.id !== connectingClient.id
+      );
+      console.log(`${connectingClient.name} disconnected`);
+    };
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Connection", "keep-alive");
     res.setHeader("Cache-Control", "no-cache");
+    req.on("close", () => terminate());
+    req.on("end", () => terminate());
+    res.write("");
   }
 }

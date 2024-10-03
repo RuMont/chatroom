@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import Controller from "../types/Controller";
 import { Route } from "../types/Route";
 import { CreateMessageDTO } from "../dtos/message/CreateMessageDTO";
-import { UpdateMessageDTO } from "../dtos/message/UpdateMessageDTO";
+import Container from "../di/container";
+import MessageService from "../services/MessageService";
 
 export default class MessageController extends Controller {
   public path: string = "/messages";
@@ -13,19 +14,14 @@ export default class MessageController extends Controller {
       handler: this.get,
     },
     {
-      path: "/:id",
+      path: "/room/:roomId",
       method: "get",
-      handler: this.getById,
+      handler: this.getFromRoom,
     },
     {
       path: "/create",
       method: "post",
       handler: this.create,
-    },
-    {
-      path: "/update",
-      method: "put",
-      handler: this.update,
     },
     {
       path: "/delete/:id",
@@ -34,17 +30,65 @@ export default class MessageController extends Controller {
     },
   ];
 
+  private readonly messageService;
+
   constructor() {
     super();
+    this.messageService = Container.get(MessageService);
   }
 
-  public get(req: Request, res: Response) {}
+  public get(req: Request, res: Response) {
+    try {
+      const messages = this.messageService.get();
+      this.sendSuccess(res, messages);
+    } catch (error) {
+      this.sendServerError(res, error + "");
+    }
+  }
 
-  public getById(req: Request, res: Response) {}
+  public async getFromRoom(req: Request, res: Response) {
+    try {
+      const messageId = req.params.id;
+      if (!messageId || typeof messageId !== "string") {
+        this.sendClientError(
+          res,
+          "'roomId' route param is mandatory and must be in UUID format. Eg: /route/<uuid>",
+          400
+        );
+        return;
+      }
+      const messages = await this.messageService.getFromRoom(messageId);
+      this.sendSuccess(res, messages);
+    } catch (error) {
+      this.sendServerError(res, error + "");
+    }
+  }
 
-  public create(req: Request<{}, {}, CreateMessageDTO>, res: Response) {}
+  public async create(req: Request<{}, {}, CreateMessageDTO>, res: Response) {
+    try {
+      const dto = req.body;
+      const result = await this.messageService.create(dto);
+      this.sendSuccess(res, result);
+    } catch (error) {
+      this.sendServerError(res, error + "");
+    }
+  }
 
-  public update(req: Request<{}, {}, UpdateMessageDTO>, res: Response) {}
-
-  public delete(req: Request, res: Response) {}
+  public async delete(req: Request, res: Response) {
+    try {
+      const messageId = req.params.id;
+      if (!messageId || typeof messageId !== "string") {
+        this.sendClientError(
+          res,
+          "'id' route param is mandatory and must be in UUID format. Eg: /route/<uuid>",
+          400
+        );
+        return;
+      }
+      const result = await this.messageService.delete(messageId);
+      this.sendSuccess(res, { affected: result.changes });
+    } catch (error) {
+      this.sendServerError(res, error + "");
+    }
+  }
 }

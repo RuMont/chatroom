@@ -30,7 +30,7 @@ export default class ClientService {
     return clientResult;
   }
 
-  async getFromRoom(roomId: NonNullable<ClientModel['roomId']>) {
+  async getFromRoom(roomId: NonNullable<ClientModel["roomId"]>) {
     return db.select().from(client).where(eq(client.roomId, roomId));
   }
 

@@ -17,6 +17,10 @@ export default class MessageService {
     return db.select().from(message);
   }
 
+  async getById(messageId: MessageModel["id"]) {
+    return db.select().from(message).where(eq(message.id, messageId)).get();
+  }
+
   async getFromRoom(roomId: MessageModel["roomId"]) {
     return db.select().from(message).where(eq(message.roomId, roomId));
   }
@@ -41,6 +45,11 @@ export default class MessageService {
   }
 
   async delete(messageId: MessageModel["id"]) {
-    return db.delete(message).where(eq(message.id, messageId));
+    const deletingMessage = await this.getById(messageId);
+    const result = db.delete(message).where(eq(message.id, messageId));
+    if (deletingMessage?.roomId) {
+      this.eventService.fireMessageDeleted(deletingMessage);
+    }
+    return result;
   }
 }

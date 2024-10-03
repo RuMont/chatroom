@@ -22,7 +22,7 @@ export default class EventController extends Controller {
     this.eventService = Container.get(EventService);
   }
 
-  public async subscribe(req: Request, res: Response, next: NextFunction) {
+  public async subscribe(req: Request, res: Response) {
     try {
       await this.eventService.subscribe(req.body, req, res);
     } catch (error) {

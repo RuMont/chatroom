@@ -1,6 +1,8 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import Controller from "../types/Controller";
 import { Route } from "../types/Route";
+import { CreateMessageDTO } from "../dtos/message/CreateMessageDTO";
+import { UpdateMessageDTO } from "../dtos/message/UpdateMessageDTO";
 
 export default class MessageController extends Controller {
   public path: string = "/messages";
@@ -36,13 +38,13 @@ export default class MessageController extends Controller {
     super();
   }
 
-  public get(req: Request, res: Response, next: NextFunction) {}
+  public get(req: Request, res: Response) {}
 
-  public getById(req: Request, res: Response, next: NextFunction) {}
+  public getById(req: Request, res: Response) {}
 
-  public create(req: Request, res: Response, next: NextFunction) {}
+  public create(req: Request<{}, {}, CreateMessageDTO>, res: Response) {}
 
-  public update(req: Request, res: Response, next: NextFunction) {}
+  public update(req: Request<{}, {}, UpdateMessageDTO>, res: Response) {}
 
-  public delete(req: Request, res: Response, next: NextFunction) {}
+  public delete(req: Request, res: Response) {}
 }

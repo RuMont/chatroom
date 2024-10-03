@@ -5,9 +5,11 @@ import {
   room,
   updateRoomSchema,
 } from "../schemas/RoomSchema";
-import { CreateRoomDto } from "../dto/CreateRoomDto";
 import Container from "../di/container";
 import EventService from "./EventService";
+import { CreateRoomDTO } from "../dtos/room/CreateRoomDTO";
+import { UpdateRoomDTO } from "../dtos/room/UpdateRoomDTO";
+import { RoomModel } from "../models/RoomModel";
 
 export default class RoomService {
   private readonly eventService: EventService;
@@ -20,13 +22,13 @@ export default class RoomService {
     return db.select().from(room);
   }
 
-  async getById(id: typeof room.$inferSelect.id) {
+  async getById(id: RoomModel["id"]) {
     const roomResult = db.select().from(room).where(eq(room.id, id)).get();
     if (!roomResult) return null;
     return roomResult;
   }
 
-  async create(roomDto: CreateRoomDto) {
+  async create(roomDto: CreateRoomDTO) {
     const validationSchema = insertRoomSchema.pick({ name: true });
     const newRoom = validationSchema.parse(roomDto);
     const sameNameRooms = await db
@@ -42,7 +44,7 @@ export default class RoomService {
     return createdRoom;
   }
 
-  async update(roomDto: CreateRoomDto) {
+  async update(roomDto: UpdateRoomDTO) {
     const validationSchema = updateRoomSchema.pick({ id: true, name: true });
     const newRoom = validationSchema.parse(roomDto);
     const updatedRoom = db
@@ -55,7 +57,7 @@ export default class RoomService {
     return updatedRoom;
   }
 
-  async delete(roomId: typeof room.$inferSelect.id) {
+  async delete(roomId: RoomModel["id"]) {
     const result = db.delete(room).where(eq(room.id, roomId));
     this.eventService.fireRoomDeleted({
       id: roomId,

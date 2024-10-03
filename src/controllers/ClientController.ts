@@ -3,6 +3,8 @@ import Controller from "../types/Controller";
 import { Route } from "../types/Route";
 import ClientService from "../services/ClientService";
 import Container from "../di/container";
+import { CreateClientDTO } from "../dtos/client/CreateClientDTO";
+import { UpdateClientDTO } from "../dtos/client/UpdateClientDTO";
 
 export default class ClientController extends Controller {
   public path: string = "/clients";
@@ -41,7 +43,7 @@ export default class ClientController extends Controller {
     this.clientService = Container.get(ClientService);
   }
 
-  public async get(req: Request, res: Response, next: NextFunction) {
+  public async get(req: Request, res: Response) {
     try {
       const clients = await this.clientService.get();
       this.sendSuccess(res, clients);
@@ -68,7 +70,7 @@ export default class ClientController extends Controller {
     }
   }
 
-  public async create(req: Request, res: Response, next: NextFunction) {
+  public async create(req: Request<{}, {}, CreateClientDTO>, res: Response) {
     try {
       const dto = req.body;
       const result = await this.clientService.create(dto);
@@ -78,7 +80,7 @@ export default class ClientController extends Controller {
     }
   }
 
-  public async update(req: Request, res: Response, next: NextFunction) {
+  public async update(req: Request<{}, {}, UpdateClientDTO>, res: Response) {
     try {
       const dto = req.body;
       const result = await this.clientService.update(dto);
@@ -92,7 +94,7 @@ export default class ClientController extends Controller {
     }
   }
 
-  public async delete(req: Request, res: Response, next: NextFunction) {
+  public async delete(req: Request, res: Response) {
     try {
       const clientId = req.params.id;
       if (!clientId || typeof clientId !== "string") {

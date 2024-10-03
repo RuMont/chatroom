@@ -5,9 +5,11 @@ import {
   insertClientSchema,
   updateClientSchema,
 } from "../schemas/ClientSchema";
-import { CreateClientDto } from "../dto/CreateClientDto";
 import Container from "../di/container";
 import EventService from "./EventService";
+import { ClientModel } from "../models/ClientModel";
+import { CreateClientDTO } from "../dtos/client/CreateClientDTO";
+import { UpdateClientDTO } from "../dtos/client/UpdateClientDTO";
 
 export default class ClientService {
   private readonly eventService: EventService;
@@ -20,7 +22,7 @@ export default class ClientService {
     return db.select().from(client);
   }
 
-  async getById(id: typeof client.$inferSelect.id) {
+  async getById(id: ClientModel["id"]) {
     const clientResult = (
       await db.select().from(client).where(eq(client.id, id))
     ).at(0);
@@ -28,13 +30,17 @@ export default class ClientService {
     return clientResult;
   }
 
-  async create(clientDto: CreateClientDto) {
+  async getFromRoom(roomId: NonNullable<ClientModel['roomId']>) {
+    return db.select().from(client).where(eq(client.roomId, roomId));
+  }
+
+  async create(clientDto: CreateClientDTO) {
     const validationSchema = insertClientSchema.pick({ name: true });
     const newClient = validationSchema.parse(clientDto);
     return db.insert(client).values(newClient).returning();
   }
 
-  async update(clientDto: CreateClientDto) {
+  async update(clientDto: UpdateClientDTO) {
     const validationSchema = updateClientSchema.pick({
       id: true,
       name: true,
@@ -71,7 +77,7 @@ export default class ClientService {
     return newClient;
   }
 
-  async delete(clientId: typeof client.$inferSelect.id) {
+  async delete(clientId: ClientModel["id"]) {
     const deletingClient = db
       .select()
       .from(client)

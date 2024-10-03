@@ -1,29 +1,27 @@
 import { Request, Response } from "express";
-import { client, updateClientSchema } from "../schemas/ClientSchema";
-import { message } from "../schemas/MessageSchema";
-import { room } from "../schemas/RoomSchema";
-import { Prettify } from "../types/Prettify";
+import { updateClientSchema } from "../schemas/ClientSchema";
 import { RTState } from "../types/RealTimeState";
 import Container from "../di/container";
 import RoomService from "./RoomService";
 import ClientService from "./ClientService";
 import { AppEvent } from "../types/AppEvent";
+import { ClientModel } from "../models/ClientModel";
+import { RoomModel } from "../models/RoomModel";
+import { MessageModel } from "../models/MessageModel";
 
 export default class EventService {
-  state: Prettify<RTState> = new Map();
-  clients: (typeof client.$inferSelect & { connection: Response })[] = [];
+  state: RTState = new Map();
+  clients: (ClientModel & { connection: Response })[] = [];
 
   public async subscribe(
-    connectedClient: typeof client.$inferSelect,
+    connectedClient: ClientModel,
     req: Request,
     res: Response
   ) {
     // restore state when the first user subscribes
     await this.restoreStateIfEmpty();
     await this.validateClient(connectedClient);
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("Cache-Control", "no-cache");
+    this.initStream(res);
     this.registerClient(connectedClient, res);
     this.watchConnection(connectedClient, req, res);
   }
@@ -44,7 +42,7 @@ export default class EventService {
 
   // #region events start
 
-  public fireRoomCreated(createdRoom: typeof room.$inferSelect) {
+  public fireRoomCreated(createdRoom: RoomModel) {
     this.state.set(createdRoom.id, {
       name: createdRoom.name,
       messages: [],
@@ -53,7 +51,7 @@ export default class EventService {
     this.notifyAll({ "[Room Created]": createdRoom });
   }
 
-  public fireRoomUpdated(updatedRoom: typeof room.$inferSelect) {
+  public fireRoomUpdated(updatedRoom: RoomModel) {
     this.state.set(updatedRoom.id, {
       ...this.state.get(updatedRoom.id)!,
       name: updatedRoom.name,
@@ -61,14 +59,14 @@ export default class EventService {
     this.notifyAll({ "[Room Updated]": updatedRoom });
   }
 
-  public fireRoomDeleted(deletedRoom: typeof room.$inferSelect) {
+  public fireRoomDeleted(deletedRoom: RoomModel) {
     this.state.delete(deletedRoom.id);
     this.notifyAll({ "[Room Deleted]": deletedRoom });
   }
 
   public fireMessageCreated(
-    roomId: typeof room.$inferSelect.id,
-    createdMessage: typeof message.$inferSelect
+    roomId: RoomModel["id"],
+    createdMessage: MessageModel
   ) {
     const room = this.state.get(roomId);
     room?.messages.push(createdMessage);
@@ -78,8 +76,8 @@ export default class EventService {
   }
 
   public fireMessageDeleted(
-    roomId: typeof room.$inferSelect.id,
-    deletedMessage: typeof message.$inferSelect
+    roomId: RoomModel["id"],
+    deletedMessage: MessageModel
   ) {
     const room = this.state.get(roomId);
     room?.messages.filter((msg) => msg.id !== deletedMessage.id);
@@ -89,8 +87,8 @@ export default class EventService {
   }
 
   public fireClientConnected(
-    roomId: typeof room.$inferSelect.id,
-    connectedClient: typeof client.$inferSelect
+    roomId: RoomModel["id"],
+    connectedClient: ClientModel
   ) {
     const room = this.state.get(roomId);
     room?.participants.push(connectedClient);
@@ -100,8 +98,8 @@ export default class EventService {
   }
 
   public fireClientUpdated(
-    roomId: typeof room.$inferSelect.id,
-    updatedClient: typeof client.$inferSelect
+    roomId: RoomModel["id"],
+    updatedClient: ClientModel
   ) {
     const room = this.state.get(roomId);
     room?.participants.filter((p) => p.id === updatedClient.id);
@@ -112,8 +110,8 @@ export default class EventService {
   }
 
   public fireClientDisconnected(
-    roomId: typeof room.$inferSelect.id,
-    disconnectedClient: typeof client.$inferSelect
+    roomId: RoomModel["id"],
+    disconnectedClient: ClientModel
   ) {
     const room = this.state.get(roomId);
     room?.participants.filter((cl) => cl.id === disconnectedClient.id);
@@ -131,7 +129,7 @@ export default class EventService {
   }
 
   private notifyRoomParticipants<T>(
-    roomId: typeof room.$inferSelect.id,
+    roomId: RoomModel["id"],
     event: AppEvent<T>
   ) {
     const participants = this.state.get(roomId)?.participants;
@@ -154,14 +152,14 @@ export default class EventService {
         participants: [],
       })
     );
+    // fetch participants
+    // fetch messages
     console.log({
       "Restored state": this.state,
     });
-    // fetch participants
-    // fetch messages
   }
 
-  private async validateClient(connectedClient: typeof client.$inferSelect) {
+  private async validateClient(connectedClient: ClientModel) {
     updateClientSchema
       .pick({
         id: true,
@@ -175,10 +173,7 @@ export default class EventService {
     if (!result) throw "unauthorized";
   }
 
-  private registerClient(
-    connectingClient: typeof client.$inferSelect,
-    res: Response
-  ) {
+  private registerClient(connectingClient: ClientModel, res: Response) {
     this.clients.push({
       ...connectingClient,
       connection: res,
@@ -187,7 +182,7 @@ export default class EventService {
   }
 
   private watchConnection(
-    connectingClient: typeof client.$inferSelect,
+    connectingClient: ClientModel,
     req: Request,
     res: Response
   ) {
@@ -200,5 +195,11 @@ export default class EventService {
       };
     });
     res.write("");
+  }
+
+  private initStream(res: Response) {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Cache-Control", "no-cache");
   }
 }

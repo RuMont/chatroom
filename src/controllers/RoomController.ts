@@ -1,8 +1,10 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import Controller from "../types/Controller";
 import { Route } from "../types/Route";
 import Container from "../di/container";
 import RoomService from "../services/RoomService";
+import { CreateRoomDTO } from "../dtos/room/CreateRoomDTO";
+import { UpdateRoomDTO } from "../dtos/room/UpdateRoomDTO";
 
 export default class RoomController extends Controller {
   public path: string = "/rooms";
@@ -41,7 +43,7 @@ export default class RoomController extends Controller {
     this.roomService = Container.get(RoomService);
   }
 
-  public async get(req: Request, res: Response, next: NextFunction) {
+  public async get(req: Request, res: Response) {
     try {
       const rooms = await this.roomService.get();
       this.sendSuccess(res, rooms);
@@ -50,7 +52,7 @@ export default class RoomController extends Controller {
     }
   }
 
-  public async getById(req: Request, res: Response, next: NextFunction) {
+  public async getById(req: Request, res: Response) {
     try {
       const roomId = req.params.id;
       if (!roomId || typeof roomId !== "string") {
@@ -68,7 +70,7 @@ export default class RoomController extends Controller {
     }
   }
 
-  public async create(req: Request, res: Response, next: NextFunction) {
+  public async create(req: Request<{}, {}, CreateRoomDTO>, res: Response) {
     try {
       const dto = req.body;
       const result = await this.roomService.create(dto);
@@ -78,7 +80,7 @@ export default class RoomController extends Controller {
     }
   }
 
-  public async update(req: Request, res: Response, next: NextFunction) {
+  public async update(req: Request<{}, {}, UpdateRoomDTO>, res: Response) {
     try {
       const dto = req.body;
       const result = await this.roomService.update(dto);
@@ -92,7 +94,7 @@ export default class RoomController extends Controller {
     }
   }
 
-  public async delete(req: Request, res: Response, next: NextFunction) {
+  public async delete(req: Request, res: Response) {
     try {
       const roomId = req.params.id;
       if (!roomId || typeof roomId !== "string") {

@@ -8,7 +8,7 @@ export const client = sqliteTable("client", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
-  name: text("name"),
+  name: text("name").notNull(),
   roomId: text("joined_room_id").references(() => room.id),
 });
 

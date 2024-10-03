@@ -1,15 +1,13 @@
-import { client } from "../schemas/ClientSchema";
-import { message } from "../schemas/MessageSchema";
-import { room } from "../schemas/RoomSchema";
+import { MessageModel } from "../models/MessageModel";
 
 export default class MessageService {
   async get() {}
 
-  async getFromRoom(roomId: typeof room.$inferSelect.id) {}
+  async getFromRoom(roomId: MessageModel["roomId"]) {}
 
-  async getFromClient(clientId: typeof client.$inferSelect.id) {}
+  async getFromClient(clientId: MessageModel["clientId"]) {}
 
   async create() {}
 
-  async delete(messageId: typeof message.$inferSelect.id) {}
+  async delete(messageId: MessageModel["id"]) {}
 }
